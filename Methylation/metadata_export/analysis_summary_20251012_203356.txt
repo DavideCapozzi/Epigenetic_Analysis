@@ -1,0 +1,27 @@
+ANALYSIS SUMMARY - TCGA Methylation Data
+Generated: 2025-10-12 20:33:56 
+Source file: D:/AcMet/3AcMet/Epigenetic_Analysis/Methylation/intermediate_methylation_data_20251008_215333.RData 
+=========================================
+
+SAMPLE SUMMARY:
+# A tibble: 3 × 2
+  project_id n_campioni
+  <chr>           <int>
+1 TCGA-COAD           1
+2 TCGA-LUAD           1
+3 TCGA-PRAD           1
+
+Total samples: 3 
+
+PROBES SUMMARY:
+cGAS probes found: 7 / 8 
+STING probes found: 5 / 5 
+Total probes analyzed: 12 
+Missing cGAS probes: cg021283926 
+Missing STING probes: None 
+
+DATA QUALITY:
+Missing values: 4 / 36 ( 11.11 %)
+Samples with complete data: 0 
+Samples with good data (>90%): 2 
+Samples with poor data (<50%): 0 
