@@ -1,3 +1,0 @@
-Acetylation/data/ENCFF681WFO.bigWig
-Acetylation/data/ENCFF984WLE.bigWig
-Methylation/TCGA_Methylation_COAD_LUAD_PRAD_450K.RData
