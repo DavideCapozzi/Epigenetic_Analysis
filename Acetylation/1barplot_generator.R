@@ -2,152 +2,182 @@ library(readxl)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
-library(patchwork) 
-library(scales) # Necessario per formattare i numeri nelle etichette
+library(patchwork)
+library(scales) # Required to format numeric labels on axes
 
-# Funzione per processare e visualizzare i dati da ogni foglio
+# Function to process and visualize acetylation data from each Excel sheet
 process_acetylation_sheet <- function(file_path, sheet_name, output_dir) {
   
-  # Leggi il foglio Excel
+  # Read the Excel sheet
   data <- read_excel(file_path, sheet = sheet_name)
   
-  # La prima colonna deve essere 'Promoter' (come concordato per l'Excel semplificato)
+  # The first column must be named 'Promoter'
   if (colnames(data)[1] != "Promoter") {
-    stop("La prima colonna del foglio Excel deve essere 'Promoter'.")
+    stop("The first column of the Excel sheet must be named 'Promoter'.")
   }
   
-  # Estrai il nome della colonna
-  promoter_col <- colnames(data)[1] 
+  # Extract the name of the first column
+  promoter_col <- colnames(data)[1]
   
-  # Trasforma in formato long per ggplot2
+  # Reshape data to long format for ggplot2
   data_long <- data %>%
     pivot_longer(
-      cols = -all_of(promoter_col),
-      names_to = "Cell_Line",
-      values_to = "Mean_Signal" 
+      cols      = -all_of(promoter_col),
+      names_to  = "Cell_Line",
+      values_to = "Mean_Signal"
     ) %>%
-    rename(Promoter = all_of(promoter_col)) %>%  
-    # Converti a factor per controllare l'ordine
+    rename(Promoter = all_of(promoter_col)) %>%
+    # Convert to factors to control display order
     mutate(Cell_Line = factor(Cell_Line, levels = unique(Cell_Line))) %>%
-    mutate(Promoter = factor(Promoter, levels = unique(Promoter)))
+    mutate(Promoter  = factor(Promoter,  levels = unique(Promoter)))
   
-  # ----------------------------------------------------
-  # Colori
-  # ----------------------------------------------------
+  # Number of cell lines (used to set facet columns)
   cell_levels <- levels(data_long$Cell_Line)
-  color_values <- c("#1B9E77", "#D95F02", "#7570B3", "#E7298A", "#66A61E", "#E6AB02")  
   
-  color_mapping <- color_values[1:min(length(cell_levels), length(color_values))]
-  names(color_mapping) <- cell_levels[1:min(length(cell_levels), length(color_values))]
-  
-  # ----------------------------------------------------
-  # CREAZIONE DEL GRAFICO BARPLOT MODIFICATO
-  # ----------------------------------------------------
-  p <- ggplot(data_long, aes(x = Promoter, y = Mean_Signal, fill = Cell_Line)) + 
-    # Barre
-    geom_col(position = position_dodge(width = 0.8), 
-             color = "black", 
-             linewidth = 0.3,
-             width = 0.75) + 
+  # Build the bar plot
+  p <- ggplot(data_long, aes(x = Cell_Line, y = Mean_Signal)) +
+    # All bars filled with solid black; no fill aesthetic mapping
+    geom_col(
+      position  = position_dodge(width = 0.8),
+      fill      = "black",   # uniform black fill for all bars
+      color     = "black",   # black border
+      linewidth = 0.3,
+      width     = 0.75
+    ) +
     
-    # Etichette dei valori sopra le barre
+    # Value labels above bars
     geom_text(
       aes(label = format(round(Mean_Signal, 2), nsmall = 2)),
-      position = position_dodge(width = 0.8), 
-      vjust = -0.5,
-      size = 3.5,
-      angle = 0, # Manteniamo l'etichetta orizzontale se possibile
-      hjust = 0.5 
+      position = position_dodge(width = 0.8),
+      vjust    = -0.5,
+      size     = 4.5,   # slightly enlarged value labels above bars
+      angle    = 0,
+      hjust    = 0.5,
+      family   = "Arial"   # Arial font for bar labels
     ) +
     
-    # Facet per Linea Cellulare, etichette in basso, senza titolo
-    facet_wrap(~ Cell_Line, 
-               scales = "free_x", 
-               ncol = length(cell_levels), 
-               strip.position = "bottom") + 
+    # Facet by Cell Line; strip.position = "bottom" places the strip at the
+    # bottom, and strip.placement = "outside" (set in theme) moves it below
+    # the X axis line. The deprecated switch argument is NOT used.
+    facet_wrap(
+      ~ Cell_Line,
+      scales         = "free_x",
+      ncol           = length(cell_levels),
+      strip.position = "bottom"
+    ) +
     
+    # Y axis: auto range with some headroom for labels
     scale_y_continuous(
-      name = "Mean Acetylation Signal (BigWig Score)",
-      limits = c(0, max(data_long$Mean_Signal) * 1.2), # Aumentato leggermente lo spazio per le etichette orizzontali
+      name   = "Mean Acetylation Signal (BigWig Score)",
+      limits = c(0, max(data_long$Mean_Signal) * 1.2),
       breaks = pretty_breaks(n = 10)
     ) +
+    
+    # X axis: title left blank (cell line name shown in facet strip below)
     scale_x_discrete(
-      name = "" # Etichetta dell'asse X principale vuota
+      name = ""
     ) +
     
-    scale_fill_manual(
-      values = color_mapping
-    ) +
+    # Plot title = sheet name
     ggtitle(sheet_name) +
-    theme_minimal() +
+    
+    # Start from a blank slate: no background, no grid, no panel border
+    theme_void() +
     theme(
-      # RIMOZIONE ETICHETTE DEI PROMOTORI SOTTO LE BARRE
-      axis.text.x = element_blank(), # Rimuove le etichette (nome del gene)
-      axis.ticks.x = element_blank(), # Rimuove i piccoli segni di spunta
+      # Draw only the left (Y) and bottom (X) axis lines so they meet cleanly at 90 degrees
+      axis.line.y       = element_line(color = "black", linewidth = 0.5),
+      axis.line.x       = element_line(color = "black", linewidth = 0.5),
       
-      axis.title.y = element_text(size = 11, face = "bold"),
-      axis.text.y = element_text(size = 10),
+      # Y axis ticks
+      axis.ticks.y      = element_line(color = "black", linewidth = 0.4),
+      axis.ticks.length = unit(0.15, "cm"),
       
-      # Rimuove lo sfondo dei facet e il titolo (ma lascia l'etichetta in fondo)
-      strip.background = element_blank(), 
-      strip.text = element_text(size = 11, face = "bold"), 
+      # Y axis title and tick labels: Arial 10 bold
+      axis.title.y = element_text(size = 10, face = "bold", family = "Arial",
+                                  angle = 90, vjust = 0.5, margin = margin(r = 6)),
+      axis.text.y  = element_text(size = 10, family = "Arial", hjust = 1,
+                                  margin = margin(r = 3)),
       
+      # Hide X axis tick marks and text (promoter names not shown;
+      # cell line identity is shown in the facet strip below the axis)
+      axis.text.x  = element_blank(),
+      axis.ticks.x = element_blank(),
+      axis.title.x = element_blank(),
+      
+      # Facet strip: no background box, bold Arial 10
+      # strip.placement = "outside" (ggplot2 >= 2.2.0) places the strip
+      # label below the X axis line, which is the correct modern API
+      strip.background = element_blank(),
+      strip.placement  = "outside",
+      strip.text       = element_text(size = 10, face = "bold", family = "Arial",
+                                      margin = margin(t = 4, b = 15)),
+      
+      # No legend
       legend.position = "none",
       
-      panel.grid.major.x = element_blank(),
-      panel.spacing = unit(0.5, "cm"), 
-      plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+      # No grid lines
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
       
-      # L'etichetta del Facet (Cell_Line) è ora l'unica informazione sull'asse X
-      axis.title.x = element_blank()
+      # Space between facet panels
+      panel.spacing = unit(0.5, "cm"),
+      
+      # Plot title: Arial 10 bold, centered
+      plot.title = element_text(size = 10, face = "bold",
+                                hjust = 0.5, family = "Arial",
+                                margin = margin(t = 15, b = 8)),
+      
+      plot.background = element_rect(fill = "white", color = NA)
     )
   
-  # Crea il nome del file di output
-  output_file <- file.path(output_dir, paste0(sheet_name, "_acetylation.png")) 
+  # Build the output file path
+  output_file <- file.path(output_dir, paste0(sheet_name, "_acetylation.png"))
   
-  # Salva il grafico
+  # Save the plot to disk
   ggsave(output_file, plot = p, width = 10, height = 7, dpi = 300)
   
-  cat("✓ Grafico salvato:", output_file, "\n")
+  cat("Plot saved:", output_file, "\n")
   
   return(p)
 }
 
-# MAIN - Specifica qui i tuoi parametri
+# MAIN - Set your file paths here before running
 main <- function() {
   
-  # ===== SPECIFICA I TUOI PARAMETRI QUI =====
-  excel_file <- "D:/AcMet/3AcMet/Epigenetic_Analysis/Acetylation/results/acetylation_signal_results.xlsx" 
-  output_directory <- "D:/AcMet/3AcMet/Epigenetic_Analysis/Acetylation/imgs"    
+  # ===== SET YOUR PARAMETERS HERE =====
+  excel_file       <- "D:/AcMet/3AcMet/Epigenetic_Analysis/Acetylation/results/acetylation_signal_results.xlsx"
+  output_directory <- "D:/AcMet/3AcMet/Epigenetic_Analysis/Acetylation/imgs"
   
-  # Verifica e crea le directory
+  # Check that the Excel file exists
   if (!file.exists(excel_file)) {
-    stop("Il file Excel non esiste: ", excel_file)
+    stop("Excel file not found: ", excel_file)
   }
+  
+  # Create the output directory if it does not exist
   if (!dir.exists(output_directory)) {
     dir.create(output_directory, recursive = TRUE)
-    cat("Directory di output creata:", output_directory, "\n")
+    cat("Output directory created:", output_directory, "\n")
   }
   
-  # Leggi i nomi di tutti i fogli
+  # Read all sheet names from the workbook
   sheet_names <- readxl::excel_sheets(excel_file)
-  cat("Fogli trovati:", paste(sheet_names, collapse = ", "), "\n\n")
+  cat("Sheets found:", paste(sheet_names, collapse = ", "), "\n\n")
   
-  # Processa ogni foglio
+  # Process each sheet
   for (sheet in sheet_names) {
-    cat("Processando:", sheet, "\n")
+    cat("Processing:", sheet, "\n")
     tryCatch(
       {
         process_acetylation_sheet(excel_file, sheet, output_directory)
       },
       error = function(e) {
-        cat("✗ Errore nel foglio", sheet, ":", e$message, "\n")
+        cat("ERROR in sheet", sheet, ":", e$message, "\n")
       }
     )
   }
   
-  cat("\nProcessamento completato!\n")
+  cat("\nAll sheets processed.\n")
 }
 
-# Esegui il main
+# Run the main function
 main()
