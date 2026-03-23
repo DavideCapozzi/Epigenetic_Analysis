@@ -4,5 +4,6 @@ Methylation/TCGA_Methylation_COAD_LUAD_PRAD_450K.RData
 metadata_export/
 imgs/
 results/
+*.Rhistory
 *.png
 *.xlsx
