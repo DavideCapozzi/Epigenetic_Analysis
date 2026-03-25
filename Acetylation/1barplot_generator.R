@@ -27,8 +27,8 @@ process_acetylation_sheet <- function(file_path, sheet_name, output_dir) {
       values_to = "Mean_Signal"
     ) %>%
     rename(Promoter = all_of(promoter_col)) %>%
-    # Convert to factors to control display order
-    mutate(Cell_Line = factor(Cell_Line, levels = unique(Cell_Line))) %>%
+    # Convert to factors to control display order: HCT116 first, then A549
+    mutate(Cell_Line = factor(Cell_Line, levels = c("HCT116", "A549"))) %>%
     mutate(Promoter  = factor(Promoter,  levels = unique(Promoter)))
   
   # Number of cell lines (used to set facet columns)
@@ -50,15 +50,13 @@ process_acetylation_sheet <- function(file_path, sheet_name, output_dir) {
       aes(label = format(round(Mean_Signal, 2), nsmall = 2)),
       position = position_dodge(width = 0.8),
       vjust    = -0.5,
-      size     = 4.5,   # slightly enlarged value labels above bars
+      size     = 6,       # INCREASED: from 4.5 to 6 (size in mm for geom_text)
       angle    = 0,
       hjust    = 0.5,
-      family   = "Arial"   # Arial font for bar labels
+      family   = "Arial"  # Arial font for bar labels
     ) +
     
-    # Facet by Cell Line; strip.position = "bottom" places the strip at the
-    # bottom, and strip.placement = "outside" (set in theme) moves it below
-    # the X axis line. The deprecated switch argument is NOT used.
+    # Facet by Cell Line
     facet_wrap(
       ~ Cell_Line,
       scales         = "free_x",
@@ -81,10 +79,10 @@ process_acetylation_sheet <- function(file_path, sheet_name, output_dir) {
     # Plot title = sheet name
     ggtitle(sheet_name) +
     
-    # Start from a blank slate: no background, no grid, no panel border
+    # Start from a blank slate
     theme_void() +
     theme(
-      # Draw only the left (Y) and bottom (X) axis lines so they meet cleanly at 90 degrees
+      # Draw only the left (Y) and bottom (X) axis lines
       axis.line.y       = element_line(color = "black", linewidth = 0.5),
       axis.line.x       = element_line(color = "black", linewidth = 0.5),
       
@@ -92,24 +90,21 @@ process_acetylation_sheet <- function(file_path, sheet_name, output_dir) {
       axis.ticks.y      = element_line(color = "black", linewidth = 0.4),
       axis.ticks.length = unit(0.15, "cm"),
       
-      # Y axis title and tick labels: Arial 10 bold
-      axis.title.y = element_text(size = 10, face = "bold", family = "Arial",
+      # Y axis title and tick labels: INCREASED sizes from 10 to 14
+      axis.title.y = element_text(size = 14, face = "bold", family = "Arial",
                                   angle = 90, vjust = 0.5, margin = margin(r = 6)),
-      axis.text.y  = element_text(size = 10, family = "Arial", hjust = 1,
+      axis.text.y  = element_text(size = 14, family = "Arial", hjust = 1,
                                   margin = margin(r = 3)),
       
-      # Hide X axis tick marks and text (promoter names not shown;
-      # cell line identity is shown in the facet strip below the axis)
+      # Hide X axis tick marks and text
       axis.text.x  = element_blank(),
       axis.ticks.x = element_blank(),
       axis.title.x = element_blank(),
       
-      # Facet strip: no background box, bold Arial 10
-      # strip.placement = "outside" (ggplot2 >= 2.2.0) places the strip
-      # label below the X axis line, which is the correct modern API
+      # Facet strip: INCREASED size from 10 to 14
       strip.background = element_blank(),
       strip.placement  = "outside",
-      strip.text       = element_text(size = 10, face = "bold", family = "Arial",
+      strip.text       = element_text(size = 14, face = "bold", family = "Arial",
                                       margin = margin(t = 4, b = 15)),
       
       # No legend
@@ -122,8 +117,8 @@ process_acetylation_sheet <- function(file_path, sheet_name, output_dir) {
       # Space between facet panels
       panel.spacing = unit(0.5, "cm"),
       
-      # Plot title: Arial 10 bold, centered
-      plot.title = element_text(size = 10, face = "bold",
+      # Plot title: INCREASED size from 10 to 16 for better hierarchy
+      plot.title = element_text(size = 16, face = "bold",
                                 hjust = 0.5, family = "Arial",
                                 margin = margin(t = 15, b = 8)),
       
@@ -145,8 +140,8 @@ process_acetylation_sheet <- function(file_path, sheet_name, output_dir) {
 main <- function() {
   
   # ===== SET YOUR PARAMETERS HERE =====
-  excel_file       <- "D:/AcMet/3AcMet/Epigenetic_Analysis/Acetylation/results/acetylation_signal_results.xlsx"
-  output_directory <- "D:/AcMet/3AcMet/Epigenetic_Analysis/Acetylation/imgs"
+  excel_file       <- "D:/AcMet/3AcMet/epigenetic-analysis/Acetylation/results/acetylation_signal_results.xlsx"
+  output_directory <- "D:/AcMet/3AcMet/epigenetic-analysis/Acetylation/imgs"
   
   # Check that the Excel file exists
   if (!file.exists(excel_file)) {

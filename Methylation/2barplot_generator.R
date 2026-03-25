@@ -39,11 +39,11 @@ process_methylation_sheet <- function(file_path, sheet_name, output_dir) {
   
   # Build the plot: Probe on X axis, faceted by Tumor Type
   p <- ggplot(data_long, aes(x = Probe, y = Beta_Value)) +
-    # All bars filled with solid black, no individual color mapping
+    # All bars filled with solid black
     geom_col(
       position = position_identity(),
-      fill  = "black",   # uniform black fill for all bars
-      color = "black",   # black border
+      fill  = "black",   
+      color = "black",   
       linewidth = 0.3,
       width = 0.75
     ) +
@@ -55,12 +55,12 @@ process_methylation_sheet <- function(file_path, sheet_name, output_dir) {
       breaks = seq(0, 1, 0.1)
     ) +
     
-    # X axis: probe names (label set inside theme)
+    # X axis: probe names
     scale_x_discrete(
-      name = "Probe"   # visible X axis title
+      name = "Probe"
     ) +
     
-    # Facet panels in the order COAD, PRAD, LUAD (left to right)
+    # Facet panels in the order COAD, PRAD, LUAD
     facet_wrap(
       ~ Tumor_Type,
       scales   = "free_x",
@@ -72,34 +72,35 @@ process_methylation_sheet <- function(file_path, sheet_name, output_dir) {
     ggtitle(sheet_name) +
     
     # Clean theme: no background grid lines
-    theme_classic() +   # axes drawn, no background grid
+    theme_classic() +
     theme(
-      # X axis text: angled for readability, Arial 10
+      # ALL TEXT SIZES INCREASED FOR READABILITY
+      # X axis text: angled for readability, Arial 14
       axis.text.x  = element_text(angle = 45, hjust = 1,
-                                  size = 10, family = "Arial"),
-      # Y axis title: Arial 10 bold
-      axis.title.y = element_text(size = 10, face = "bold", family = "Arial"),
-      # Y axis tick labels: Arial 10
-      axis.text.y  = element_text(size = 10, family = "Arial"),
-      # X axis title: Arial 10 bold
-      axis.title.x = element_text(size = 10, face = "bold", family = "Arial"),
+                                  size = 14, family = "Arial"),
+      # Y axis title: Arial 14 bold
+      axis.title.y = element_text(size = 14, face = "bold", family = "Arial"),
+      # Y axis tick labels: Arial 14
+      axis.text.y  = element_text(size = 14, family = "Arial"),
+      # X axis title: Arial 14 bold
+      axis.title.x = element_text(size = 14, face = "bold", family = "Arial"),
       
-      # Facet strip: no background box, bold Arial 10
+      # Facet strip: no background box, bold Arial 14
       strip.background = element_blank(),
-      strip.text       = element_text(size = 10, face = "bold", family = "Arial"),
+      strip.text       = element_text(size = 14, face = "bold", family = "Arial"),
       
-      # No legend (facet labels already identify tumor types)
+      # No legend
       legend.position = "none",
       
-      # Remove all panel grid lines (major and minor)
+      # Remove all panel grid lines
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
       
       # Space between facet panels
       panel.spacing = unit(1.5, "cm"),
       
-      # Plot title: Arial 10 bold, centered
-      plot.title = element_text(size = 10, face = "bold",
+      # Plot title: INCREASED to 16 for better hierarchy
+      plot.title = element_text(size = 16, face = "bold",
                                 hjust = 0.5, family = "Arial")
     )
   
@@ -118,8 +119,8 @@ process_methylation_sheet <- function(file_path, sheet_name, output_dir) {
 main <- function() {
   
   # ===== SET YOUR PARAMETERS HERE =====
-  excel_file       <- "D:/AcMet/3AcMet/Epigenetic_Analysis/Methylation/results/methylation_beta_values_ordered.xlsx"
-  output_directory <- "D:/AcMet/3AcMet/Epigenetic_Analysis/Methylation/imgs"
+  excel_file       <- "D:/AcMet/3AcMet/epigenetic-analysis/Methylation/results/methylation_beta_values_ordered.xlsx"
+  output_directory <- "D:/AcMet/3AcMet/epigenetic-analysis/Methylation/imgs"
   
   # Check that the Excel file exists
   if (!file.exists(excel_file)) {
