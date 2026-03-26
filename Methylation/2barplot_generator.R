@@ -25,7 +25,7 @@ process_methylation_sheet <- function(file_path, sheet_name, output_dir) {
       values_to = "Beta_Value"
     ) %>%
     rename(Probe = all_of(probe_col)) %>%
-    # Set Tumor_Type factor with the desired display order: COAD, PRAD, LUAD
+    # Set Tumor_Type factor with the desired display order
     mutate(Tumor_Type = factor(Tumor_Type, levels = c("TCGA-COAD", "TCGA-PRAD", "TCGA-LUAD"))) %>%
     # Set Probe as a factor to preserve the correct order on the X axis
     mutate(Probe = factor(Probe, levels = unique(Probe)))
@@ -37,7 +37,7 @@ process_methylation_sheet <- function(file_path, sheet_name, output_dir) {
     "TCGA-PRAD" = "PRAD"
   )
   
-  # Build the plot: Probe on X axis, faceted by Tumor Type
+  # Build the plot
   p <- ggplot(data_long, aes(x = Probe, y = Beta_Value)) +
     # All bars filled with solid black
     geom_col(
@@ -60,7 +60,7 @@ process_methylation_sheet <- function(file_path, sheet_name, output_dir) {
       name = "Probe"
     ) +
     
-    # Facet panels in the order COAD, PRAD, LUAD
+    # Facet panels
     facet_wrap(
       ~ Tumor_Type,
       scales   = "free_x",
@@ -75,31 +75,20 @@ process_methylation_sheet <- function(file_path, sheet_name, output_dir) {
     theme_classic() +
     theme(
       # ALL TEXT SIZES INCREASED FOR READABILITY
-      # X axis text: angled for readability, Arial 14
       axis.text.x  = element_text(angle = 45, hjust = 1,
                                   size = 14, family = "Arial"),
-      # Y axis title: Arial 14 bold
       axis.title.y = element_text(size = 14, face = "bold", family = "Arial"),
-      # Y axis tick labels: Arial 14
       axis.text.y  = element_text(size = 14, family = "Arial"),
-      # X axis title: Arial 14 bold
       axis.title.x = element_text(size = 14, face = "bold", family = "Arial"),
       
-      # Facet strip: no background box, bold Arial 14
+      # Facet strip
       strip.background = element_blank(),
       strip.text       = element_text(size = 14, face = "bold", family = "Arial"),
       
-      # No legend
       legend.position = "none",
-      
-      # Remove all panel grid lines
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
-      
-      # Space between facet panels
       panel.spacing = unit(1.5, "cm"),
-      
-      # Plot title: INCREASED to 16 for better hierarchy
       plot.title = element_text(size = 16, face = "bold",
                                 hjust = 0.5, family = "Arial")
     )
@@ -110,7 +99,7 @@ process_methylation_sheet <- function(file_path, sheet_name, output_dir) {
   # Save the plot to disk
   ggsave(output_file, plot = p, width = 12, height = 6, dpi = 300)
   
-  cat("Plot saved:", output_file, "\n")
+  cat("[INFO] Plot saved:", output_file, "\n")
   
   return(p)
 }
@@ -130,27 +119,27 @@ main <- function() {
   # Create the output directory if it does not exist
   if (!dir.exists(output_directory)) {
     dir.create(output_directory, recursive = TRUE)
-    cat("Output directory created:", output_directory, "\n")
+    cat("[INFO] Output directory created:", output_directory, "\n")
   }
   
   # Read all sheet names from the workbook
   sheet_names <- excel_sheets(excel_file)
-  cat("Sheets found:", paste(sheet_names, collapse = ", "), "\n\n")
+  cat("[INFO] Sheets found:", paste(sheet_names, collapse = ", "), "\n\n")
   
   # Process each sheet
   for (sheet in sheet_names) {
-    cat("Processing:", sheet, "\n")
+    cat("[INFO] Processing:", sheet, "\n")
     tryCatch(
       {
         process_methylation_sheet(excel_file, sheet, output_directory)
       },
       error = function(e) {
-        cat("ERROR in sheet", sheet, ":", e$message, "\n")
+        cat("[ERROR] In sheet", sheet, ":", e$message, "\n")
       }
     )
   }
   
-  cat("\nAll sheets processed.\n")
+  cat("\n[INFO] All sheets processed.\n")
 }
 
 # Run the main function

@@ -3,7 +3,7 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(patchwork)
-library(scales) # Required to format numeric labels on axes
+library(scales) 
 
 # Function to process and visualize acetylation data from each Excel sheet
 process_acetylation_sheet <- function(file_path, sheet_name, output_dir) {
@@ -39,8 +39,8 @@ process_acetylation_sheet <- function(file_path, sheet_name, output_dir) {
     # All bars filled with solid black; no fill aesthetic mapping
     geom_col(
       position  = position_dodge(width = 0.8),
-      fill      = "black",   # uniform black fill for all bars
-      color     = "black",   # black border
+      fill      = "black",   
+      color     = "black",   
       linewidth = 0.3,
       width     = 0.75
     ) +
@@ -50,10 +50,10 @@ process_acetylation_sheet <- function(file_path, sheet_name, output_dir) {
       aes(label = format(round(Mean_Signal, 2), nsmall = 2)),
       position = position_dodge(width = 0.8),
       vjust    = -0.5,
-      size     = 6,       # INCREASED: from 4.5 to 6 (size in mm for geom_text)
+      size     = 6,       
       angle    = 0,
       hjust    = 0.5,
-      family   = "Arial"  # Arial font for bar labels
+      family   = "Arial"  
     ) +
     
     # Facet by Cell Line
@@ -90,7 +90,7 @@ process_acetylation_sheet <- function(file_path, sheet_name, output_dir) {
       axis.ticks.y      = element_line(color = "black", linewidth = 0.4),
       axis.ticks.length = unit(0.15, "cm"),
       
-      # Y axis title and tick labels: INCREASED sizes from 10 to 14
+      # Y axis title and tick labels
       axis.title.y = element_text(size = 14, face = "bold", family = "Arial",
                                   angle = 90, vjust = 0.5, margin = margin(r = 6)),
       axis.text.y  = element_text(size = 14, family = "Arial", hjust = 1,
@@ -101,7 +101,7 @@ process_acetylation_sheet <- function(file_path, sheet_name, output_dir) {
       axis.ticks.x = element_blank(),
       axis.title.x = element_blank(),
       
-      # Facet strip: INCREASED size from 10 to 14
+      # Facet strip
       strip.background = element_blank(),
       strip.placement  = "outside",
       strip.text       = element_text(size = 14, face = "bold", family = "Arial",
@@ -117,7 +117,7 @@ process_acetylation_sheet <- function(file_path, sheet_name, output_dir) {
       # Space between facet panels
       panel.spacing = unit(0.5, "cm"),
       
-      # Plot title: INCREASED size from 10 to 16 for better hierarchy
+      # Plot title
       plot.title = element_text(size = 16, face = "bold",
                                 hjust = 0.5, family = "Arial",
                                 margin = margin(t = 15, b = 8)),
@@ -131,7 +131,7 @@ process_acetylation_sheet <- function(file_path, sheet_name, output_dir) {
   # Save the plot to disk
   ggsave(output_file, plot = p, width = 10, height = 7, dpi = 300)
   
-  cat("Plot saved:", output_file, "\n")
+  cat("[INFO] Plot saved:", output_file, "\n")
   
   return(p)
 }
@@ -151,27 +151,27 @@ main <- function() {
   # Create the output directory if it does not exist
   if (!dir.exists(output_directory)) {
     dir.create(output_directory, recursive = TRUE)
-    cat("Output directory created:", output_directory, "\n")
+    cat("[INFO] Output directory created:", output_directory, "\n")
   }
   
   # Read all sheet names from the workbook
   sheet_names <- readxl::excel_sheets(excel_file)
-  cat("Sheets found:", paste(sheet_names, collapse = ", "), "\n\n")
+  cat("[INFO] Sheets found:", paste(sheet_names, collapse = ", "), "\n\n")
   
   # Process each sheet
   for (sheet in sheet_names) {
-    cat("Processing:", sheet, "\n")
+    cat("[INFO] Processing:", sheet, "\n")
     tryCatch(
       {
         process_acetylation_sheet(excel_file, sheet, output_directory)
       },
       error = function(e) {
-        cat("ERROR in sheet", sheet, ":", e$message, "\n")
+        cat("[ERROR] In sheet", sheet, ":", e$message, "\n")
       }
     )
   }
   
-  cat("\nAll sheets processed.\n")
+  cat("\n[INFO] All sheets processed.\n")
 }
 
 # Run the main function

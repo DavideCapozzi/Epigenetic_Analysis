@@ -4,47 +4,47 @@ library(writexl)
 library(dplyr)
 library(tidyr)
 
-# Funzione principale per calcolare il segnale di acetilazione
+# Main function to calculate the acetylation signal
 calculate_acetylation_signal <- function(bigwig_path, chrom, start, end) {
-  # Creazione dell'oggetto GRanges per la regione di interesse
+  # Create the GRanges object for the region of interest
   region_gr <- GRanges(seqnames = chrom,
                        ranges = IRanges(start = start, end = end))
   
   tryCatch({
-    # Importazione del segnale dalla regione specificata
+    # Import the signal from the specified region
     signal_data <- import(bigwig_path, which = region_gr)
     
-    # Se non ci sono dati nella regione
+    # If there is no data in the region
     if (length(signal_data) == 0) {
-      return(0)  # Ritorna 0 invece di NA per evitare problemi nei confronti
+      return(0)  # Return 0 instead of NA to avoid comparison issues
     }
     
-    # Calcolo del segnale medio normalizzato per la lunghezza della regione
+    # Calculate the mean signal normalized by the region length
     total_signal <- sum(signal_data$score)
     region_length <- end - start + 1
     normalized_signal <- total_signal / region_length
     
     return(normalized_signal)
   }, error = function(e) {
-    message(paste("Errore nel processare il file:", bigwig_path))
-    message(paste("Dettaglio errore:", e$message))
+    message(paste("[ERROR] Processing file:", bigwig_path))
+    message(paste("Error detail:", e$message))
     return(NA)
   })
 }
 
-# Funzione per costruire la tabella dei risultati per un promotore
+# Function to build the results table for a specific promoter
 build_promoter_signal_table <- function(promoter_name, chrom, start, end, bigwig_files, cell_lines) {
-  # Verifica che i file e le linee cellulari corrispondano
+  # Verify that the number of files matches the number of cell lines
   if (length(bigwig_files) != length(cell_lines)) {
-    stop("Il numero di file bigWig e linee cellulari deve essere uguale")
+    stop("The number of bigWig files and cell lines must be equal")
   }
   
-  # Calcola il segnale per ogni file
+  # Calculate the signal for each file
   signals <- sapply(bigwig_files, function(bw_file) {
     calculate_acetylation_signal(bw_file, chrom, start, end)
   })
   
-  # Crea il dataframe dei risultati
+  # Create the results dataframe
   results <- data.frame(
     Promoter = promoter_name,
     Cell_line = cell_lines,
@@ -57,107 +57,98 @@ build_promoter_signal_table <- function(promoter_name, chrom, start, end, bigwig
 
 write_results_to_excel <- function(data, output_file) {
   
-  # Estrai i nomi unici dei promotori
+  # Extract unique promoter names
   promoters <- unique(data$Promoter)
   
-  # Crea una lista per contenere i dataframe formattati (un foglio per promotore)
+  # Create a list to hold formatted dataframes (one sheet per promoter)
   sheet_list <- list()
   
   for (promoter in promoters) {
     
-    # 1. Filtra i dati per il promotore corrente
+    # 1. Filter data for the current promoter
     promoter_data <- data %>%
       filter(Promoter == promoter)
     
-    # 2. Trasforma i dati nel formato 'wide' richiesto dallo script di plotting
-    #    La colonna 'Probe' (che sarà il nome del promotore) e le colonne delle linee cellulari
+    # 2. Transform data into the 'wide' format required by the plotting script
     formatted_sheet <- promoter_data %>%
       select(Promoter, Cell_line, Mean_signal) %>%
       pivot_wider(
         names_from = Cell_line,
         values_from = Mean_signal
-      ) %>%
-      rename(Promoter = Promoter)
+      ) 
     
-    # Inserisci il dataframe formattato nella lista con il nome del foglio = nome del promotore
+    # Insert the formatted dataframe into the list
     sheet_list[[promoter]] <- formatted_sheet
   }
   
-  # Scrivi la lista di dataframe come fogli separati nel file Excel
+  # Write the list of dataframes as separate sheets in the Excel file
   tryCatch({
     writexl::write_xlsx(sheet_list, path = output_file)
-    cat("\n✓ Risultati salvati con successo in:", output_file, "\n")
+    cat("\n[SUCCESS] Results successfully saved to:", output_file, "\n")
   }, error = function(e) {
-    cat("\n✗ Errore nel salvataggio del file Excel:", e$message, "\n")
+    cat("\n[ERROR] Saving the Excel file:", e$message, "\n")
   })
 }
 
-# Funzione per scrivere i risultati Mean_signal (Mean FC) in un singolo foglio wide
+# Function to write Mean_signal (Mean FC) results into a single wide sheet
 write_mean_fc_to_single_sheet_excel <- function(data, output_file) {
   
-  # Trasforma i dati dal formato 'long' a 'wide'
+  # Transform data from 'long' to 'wide' format
   formatted_sheet <- data %>%
     select(Promoter, Cell_line, Mean_signal) %>%
     pivot_wider(
       names_from = Cell_line,
       values_from = Mean_signal
-    ) %>%
-    # Rinominare le colonne per corrispondere esattamente al tuo esempio
-    rename(Promotore = Promoter) %>%
-    # Aggiunge il suffisso (fold-change) ai nomi delle colonne delle linee cellulari
-    rename_with(~ paste0(.x), .cols = -Promotore)
+    )
   
-  # Scrive in un unico foglio chiamato "Mean_Fold_Change"
+  # Write into a single sheet named "Mean_Fold_Change"
   sheet_list <- list(Mean_Fold_Change = formatted_sheet)
   
   tryCatch({
     writexl::write_xlsx(sheet_list, path = output_file)
-    cat("\n✓ Tabella Fold-Change Media salvata con successo in:", output_file, "\n")
+    cat("\n[SUCCESS] Mean Fold-Change table successfully saved to:", output_file, "\n")
   }, error = function(e) {
-    cat("\n✗ Errore nel salvataggio del file Excel:", e$message, "\n")
+    cat("\n[ERROR] Saving the Excel file:", e$message, "\n")
   })
 }
 
-
-# Esempio di utilizzo per CGAS e STING1
-# Definisci i percorsi dei file BigWig (esempio)
+# Example usage for cGAS and STING1
 bigwig_files <- c(
-  "D:/AcMet/3AcMet/Epigenetic_Analysis/Acetylation/data/ENCFF681WFO.bigWig", #A549
-  "D:/AcMet/3AcMet/Epigenetic_Analysis/Acetylation/data/ENCFF984WLE.bigWig"  #HCT116
+  "D:/AcMet/3AcMet/epigenetic-analysis/Acetylation/data/ENCFF681WFO.bigWig", #A549
+  "D:/AcMet/3AcMet/epigenetic-analysis/Acetylation/data/ENCFF984WLE.bigWig"  #HCT116
 )
 
-#cell_lines <- c("A549", "HCT116", "LNCaP", "Caco-2")
 cell_lines <- c("A549", "HCT116")
 
-# Calcola per il promotore di CGAS
+# Calculate for the cGAS promoter
 cgas_results <- build_promoter_signal_table(
   "cGAS", "chr6", 73450297, 73452797, 
   bigwig_files, cell_lines
 )
 
-# Calcola per il promotore di STING1
+# Calculate for the STING1 promoter
 sting_results <- build_promoter_signal_table(
   "STING", "chr5", 139480935, 139483435, 
   bigwig_files, cell_lines
 )
 
-# Combina i risultati
+# Combine the results
 final_results <- rbind(cgas_results, sting_results)
 print(final_results)
 
-# Aggiungi qui l'output di destinazione (usando un nome e percorso sensato per i risultati)
-output_excel_file <- "D:/AcMet/3AcMet/Epigenetic_Analysis/Acetylation/results/acetylation_signal_results.xlsx" 
+# Define the destination output path
+output_excel_file <- "D:/AcMet/3AcMet/epigenetic-analysis/Acetylation/results/acetylation_signal_results.xlsx" 
 
-# Verifica e crea la directory 'results' se necessario (assumendo una struttura simile al tuo plotting script)
+# Check and create the 'results' directory if necessary
 output_dir <- dirname(output_excel_file)
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
-  cat("Directory di output creata:", output_dir, "\n")
+  cat("[INFO] Output directory created:", output_dir, "\n")
 }
 
-# Chiama la funzione di salvataggio
+# Call the save functions
 write_results_to_excel(final_results, output_excel_file)
 
-output_excel_file_single <- "D:/AcMet/3AcMet/Epigenetic_Analysis/Acetylation/results/acetylation_signal_results_single.xlsx"
+output_excel_file_single <- "D:/AcMet/3AcMet/epigenetic-analysis/Acetylation/results/acetylation_signal_results_single.xlsx"
 
 write_mean_fc_to_single_sheet_excel(final_results, output_excel_file_single)

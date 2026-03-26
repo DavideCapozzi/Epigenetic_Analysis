@@ -1,7 +1,7 @@
-# ANALISI METILAZIONE CGAS E STING IN DATASET TCGA - VERSIONE DEFINITIVA
-setwd("D:/AcMet/3AcMet/Epigenetic_Analysis/Methylation/")
+# METHYLATION ANALYSIS FOR CGAS AND STING IN TCGA DATASET - FINAL VERSION
+setwd("D:/AcMet/3AcMet/epigenetic-analysis/Methylation/")
 
-# CARICAMENTO PACCHETTI
+# LOAD REQUIRED PACKAGES
 load_required_packages <- function() {
   required_packages <- c("TCGAbiolinks", "SummarizedExperiment", "dplyr", 
                          "ggplot2", "tidyr", "stringr")
@@ -18,22 +18,22 @@ load_required_packages <- function() {
       library(pkg, character.only = TRUE)
     }
   }
-  cat("✓ Pacchetti caricati correttamente\n")
+  cat("[SUCCESS] Packages loaded successfully\n")
 }
 
-# FUNZIONE PRINCIPALE OTTIMIZZATA
+# OPTIMIZED MAIN FUNCTION
 load_existing_methylation_data_final <- function() {
-  cat("=== CARICAMENTO DATI METILAZIONE - VERSIONE FINALE ===\n")
+  cat("=== METHYLATION DATA LOADING - FINAL VERSION ===\n")
   
-  # 1. Definizione sonde target
+  # 1. Define target probes
   cgas_probes <- c("cg00996469", "cg09931909", "cg021283926", "cg16353624", 
                    "cg08905652", "cg16390139", "cg27279904", "cg00463577")
   sting_probes <- c("cg04232128", "cg03317505", "cg04560810", "cg14655316", 
                     "cg16532438")
   target_probes <- unique(c(cgas_probes, sting_probes))
-  cat("Sonde target cercate:", length(target_probes), "\n")
+  cat("[INFO] Target probes searched:", length(target_probes), "\n")
   
-  # 2. Trova i file .sesame.level3betas.txt
+  # 2. Find .sesame.level3betas.txt files
   data_dir <- "GDCdata"
   file_paths <- list.files(
     path = data_dir, 
@@ -42,66 +42,58 @@ load_existing_methylation_data_final <- function() {
     full.names = TRUE
   )
   
-  cat("Trovati", length(file_paths), "file .sesame.level3betas.txt\n")
+  cat("[INFO] Found", length(file_paths), ".sesame.level3betas.txt files\n")
   
   if (length(file_paths) == 0) {
-    stop("Nessun file '.sesame.level3betas.txt' trovato")
+    stop("No '.sesame.level3betas.txt' files found")
   }
   
-  # 3. Funzione per estrarre TCGA barcode dal percorso
+  # 3. Function to extract TCGA barcode from path
   extract_barcode <- function(path) {
-    cat("Analizzo percorso:", path, "\n")
     
-    # Metodo 1: Cerca nel percorso il pattern TCGA-XX-XXXX-XX
+    # Method 1: Search the path for the TCGA-XX-XXXX-XX pattern
     barcode_match <- regmatches(path, regexpr("TCGA-[A-Z0-9]{2}-[A-Z0-9]{4}-[0-9]{2}[A-Z]", path))
     if (length(barcode_match) > 0) {
-      cat("Barcode trovato con regex:", barcode_match[1], "\n")
       return(barcode_match[1])
     }
     
-    # Metodo 2: Estrai dalle directory
+    # Method 2: Extract from directories
     path_parts <- strsplit(path, "/")[[1]]
-    cat("Parti del percorso:", paste(path_parts, collapse = " | "), "\n")
     
-    # Cerca parti che contengono TCGA
+    # Search parts containing TCGA
     tcga_parts <- path_parts[grepl("TCGA", path_parts)]
     if (length(tcga_parts) > 0) {
-      # Prendi l'ultima parte che contiene TCGA (più specifica)
       potential_barcode <- tcga_parts[length(tcga_parts)]
-      cat("Potenziale barcode da directory:", potential_barcode, "\n")
       return(potential_barcode)
     }
     
-    cat("Nessun barcode trovato per:", path, "\n")
+    cat("[WARN] No barcode found for:", path, "\n")
     return(NA)
   }
   
-  # 4. Leggi i file con debugging
-  cat("Inizio lettura dei file...\n")
+  # 4. Read files with debugging
+  cat("[INFO] Starting file reading...\n")
   beta_list <- list()
   sample_barcodes <- character()
   files_processed <- 0
   files_with_data <- 0
   
   for (i in seq_along(file_paths)) {
-    if (i %% 50 == 0) cat("Processati", i, "file su", length(file_paths), "\n")
+    if (i %% 50 == 0) cat("[INFO] Processed", i, "files out of", length(file_paths), "\n")
     
-    # Estrai barcode
     barcode <- extract_barcode(file_paths[i])
     
     if (!is.na(barcode)) {
-      # Leggi il file
       data <- tryCatch({
         read.delim(file_paths[i], header = FALSE, stringsAsFactors = FALSE, sep = "\t")
       }, error = function(e) {
-        cat("❌ Errore lettura file", file_paths[i], "-", e$message, "\n")
+        cat("[ERROR] Reading file", file_paths[i], "-", e$message, "\n")
         return(NULL)
       })
       
       if (!is.null(data) && ncol(data) == 2) {
         colnames(data) <- c("Probe", "BetaValue")
         
-        # Verifica che contenga le sonde target
         has_target_probes <- any(target_probes %in% data$Probe)
         
         if (has_target_probes) {
@@ -110,38 +102,33 @@ load_existing_methylation_data_final <- function() {
           beta_list[[barcode]] <- beta_vector
           sample_barcodes <- c(sample_barcodes, barcode)
           files_with_data <- files_with_data + 1
-          cat("✓ File", i, "- Barcode:", barcode, "- Sonde target: SI\n")
-        } else {
-          cat("⚠️ File", i, "- Barcode:", barcode, "- Sonde target: NO\n")
         }
       }
       files_processed <- files_processed + 1
     }
   }
   
-  cat("File processati:", files_processed, "\n")
-  cat("File con dati validi:", files_with_data, "\n")
-  cat("Barcode estratti:", length(sample_barcodes), "\n")
+  cat("[INFO] Files processed:", files_processed, "\n")
+  cat("[INFO] Files with valid data:", files_with_data, "\n")
+  cat("[INFO] Extracted barcodes:", length(sample_barcodes), "\n")
   
   if (length(beta_list) == 0) {
-    stop("Nessun dato valido trovato nei file")
+    stop("No valid data found in the files")
   }
   
-  # 5. DEBUG: Controlla quali sonde sono presenti
+  # 5. DEBUG: Check which probes are present
   all_probes <- unique(unlist(lapply(beta_list, names)))
-  cat("Tutte le sonde trovate nei file (prime 20):", head(all_probes, 20), "\n")
-  cat("Numero totale di sonde uniche:", length(all_probes), "\n")
+  cat("[INFO] Total number of unique probes:", length(all_probes), "\n")
   
   available_probes <- target_probes[target_probes %in% all_probes]
-  cat("Sonde target disponibili:", length(available_probes), "/", length(target_probes), "\n")
-  cat("Sonde target trovate:", paste(available_probes, collapse = ", "), "\n")
+  cat("[INFO] Target probes available:", length(available_probes), "/", length(target_probes), "\n")
   
   if (length(available_probes) == 0) {
-    stop("Nessuna delle sonde target è presente nei dati")
+    stop("None of the target probes are present in the data")
   }
   
-  # 6. Crea matrice beta values
-  cat("Creazione matrice beta values...\n")
+  # 6. Create beta values matrix
+  cat("[INFO] Creating beta values matrix...\n")
   beta_matrix <- matrix(
     NA, 
     nrow = length(available_probes), 
@@ -149,26 +136,24 @@ load_existing_methylation_data_final <- function() {
     dimnames = list(available_probes, names(beta_list))
   )
   
-  # Riempimento matrice
   for (barcode in names(beta_list)) {
     probe_data <- beta_list[[barcode]]
-    # Usa match per allineare correttamente le sonde
     match_idx <- match(available_probes, names(probe_data))
     beta_matrix[available_probes, barcode] <- probe_data[match_idx]
   }
   
-  cat("Matrice creata - Dimensioni:", dim(beta_matrix), "\n")
+  cat("[INFO] Matrix created - Dimensions:", dim(beta_matrix), "\n")
   
-  # 7. Crea metadati
-  cat("Creazione metadati...\n")
+  # 7. Create metadata
+  cat("[INFO] Creating metadata...\n")
   metadata <- data.frame(
     submitter_id = names(beta_list),
-    project_id = substr(names(beta_list), 1, 9),  # Es: "TCGA-COAD"
+    project_id = substr(names(beta_list), 1, 9), 
     sample_type = "Primary Tumor",
     stringsAsFactors = FALSE
   )
   
-  cat("Metadati creati per", nrow(metadata), "campioni\n")
+  cat("[INFO] Metadata created for", nrow(metadata), "samples\n")
   
   return(list(
     beta_values = beta_matrix,
@@ -179,50 +164,45 @@ load_existing_methylation_data_final <- function() {
   ))
 }
 
-# SALVA DATI INTERMEDI
+# SAVE INTERMEDIATE DATA
 save_intermediate_data <- function(data, step_name) {
   filename <- paste0("intermediate_", step_name, "_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".RData")
   save(data, file = filename)
-  cat("✓ Dati salvati in", filename, "\n")
+  cat("[SUCCESS] Data saved to", filename, "\n")
   return(filename)
 }
 
-# CARICA DATI SALVATI
+# LOAD SAVED DATA
 load_saved_data <- function(filename) {
   if (file.exists(filename)) {
     load(filename)
-    cat("✓ Dati caricati da", filename, "\n")
+    cat("[SUCCESS] Data loaded from", filename, "\n")
     return(data)
   } else {
-    stop("File non trovato:", filename)
+    stop("File not found:", filename)
   }
 }
 
-# ANALISI DESCRITTIVA CON CONTROLLI
+# DESCRIPTIVE ANALYSIS WITH CHECKS
 perform_descriptive_analysis <- function(data) {
-  cat("=== ANALISI DESCRITTIVA ===\n")
+  cat("=== DESCRIPTIVE ANALYSIS ===\n")
   
-  # Controlli preliminari
-  cat("Controllo dimensioni dati:\n")
+  cat("[INFO] Checking data dimensions:\n")
   cat("  Beta values:", dim(data$beta_values), "\n")
-  cat("  Metadati:", nrow(data$metadata), "\n")
-  cat("  Sonde disponibili:", length(data$available_probes), "\n")
+  cat("  Metadata:", nrow(data$metadata), "\n")
+  cat("  Available probes:", length(data$available_probes), "\n")
   
-  # Creazione tabella riassuntiva
   summary_table <- data.frame(
     Sample = colnames(data$beta_values),
     Project = data$metadata$project_id,
     stringsAsFactors = FALSE
   )
   
-  # Aggiungi i beta values per ogni sonda
   for(probe in data$available_probes) {
     beta_vals <- as.numeric(data$beta_values[probe, ])
-    cat("Sonda", probe, "- Valori non-NA:", sum(!is.na(beta_vals)), "/", length(beta_vals), "\n")
     summary_table[[probe]] <- beta_vals
   }
   
-  # Calcolo statistiche descrittive
   stats <- summary_table %>%
     group_by(Project) %>%
     summarise(
@@ -235,16 +215,13 @@ perform_descriptive_analysis <- function(data) {
              .names = "{.col}_{.fn}")
     )
   
-  print(stats)
-  
   return(list(summary_table = summary_table, statistics = stats))
 }
 
-# CREAZIONE VISUALIZZAZIONI CON CONTROLLI
+# CREATE VISUALIZATIONS WITH CHECKS
 create_visualizations <- function(data, descriptive_results) {
-  cat("=== CREAZIONE VISUALIZZAZIONI ===\n")
+  cat("=== CREATING VISUALIZATIONS ===\n")
   
-  # Prepara dati per plotting
   plot_data <- descriptive_results$summary_table %>%
     pivot_longer(
       cols = -c(Sample, Project),
@@ -255,88 +232,76 @@ create_visualizations <- function(data, descriptive_results) {
       Gene = ifelse(Probe %in% data$cgas_probes, "CGAS", "STING")
     )
   
-  cat("Dati per plotting:", nrow(plot_data), "righe\n")
-  cat("Valori non-NA:", sum(!is.na(plot_data$BetaValue)), "\n")
+  cat("[INFO] Plotting data:", nrow(plot_data), "rows\n")
+  cat("[INFO] Non-NA values:", sum(!is.na(plot_data$BetaValue)), "\n")
   
-  # Boxplot per gene e progetto
   p1 <- ggplot(plot_data, aes(x = Project, y = BetaValue, fill = Gene)) +
     geom_boxplot(alpha = 0.8, na.rm = TRUE) +
-    labs(title = "Metilazione CGAS e STING in Tumori Primari TCGA",
-         subtitle = paste("Basato su", length(data$available_probes), "sonde specifiche"),
-         y = "Valore Beta di Metilazione", 
-         x = "Tipo Tumorale") +
+    labs(title = "CGAS and STING Methylation in TCGA Primary Tumors",
+         subtitle = paste("Based on", length(data$available_probes), "specific probes"),
+         y = "Methylation Beta Value", 
+         x = "Tumor Type") +
     theme_minimal() +
     theme(legend.position = "top")
   
-  print(p1)
+  if (!dir.exists("results")) {
+    dir.create("results")
+  }
+  ggsave("results/methylation_cgas_sting_boxplot.png", p1, width = 10, height = 6)
   
-  # Salva il plot
-  ggsave("results/metilazione_cgas_sting_boxplot.png", p1, width = 10, height = 6)
-  
-  # Boxplot separati per sonda se non troppe
   if (length(data$available_probes) <= 15) {
     p2 <- ggplot(plot_data, aes(x = Project, y = BetaValue, fill = Project)) +
       geom_boxplot(na.rm = TRUE) +
       facet_wrap(~ Probe + Gene, scales = "free_y", ncol = 3) +
-      labs(title = "Metilazione per Sonda Specifica",
-           y = "Valore Beta di Metilazione") +
+      labs(title = "Methylation per Specific Probe",
+           y = "Methylation Beta Value",
+           x = "Tumor Type") +
       theme_minimal() +
       theme(axis.text.x = element_text(angle = 45, hjust = 1))
     
-    print(p2)
-    ggsave("results/metilazione_per_sonde.png", p2, width = 12, height = 8)
+    ggsave("results/methylation_per_probe.png", p2, width = 12, height = 8)
   }
   
   return(plot_data)
 }
 
-# ESPORTAZIONE RISULTATI
+# EXPORT RESULTS
 export_results <- function(descriptive_results, plot_data, data) {
-  cat("=== ESPORTAZIONE RISULTATI ===\n")
+  cat("=== EXPORTING RESULTS ===\n")
   
-  # Crea directory se non esistono
   if (!dir.exists("results")) {
     dir.create("results")
   }
   
-  # File paths
   beta_file <- "results/methylation_beta_values_target_probes.csv"
   stats_file <- "results/methylation_statistics_target_probes.csv"
   plot_data_file <- "results/plot_data.csv"
   probe_info_file <- "results/probe_information.csv"
   
-  # Esporta dati
   write.csv(descriptive_results$summary_table, beta_file, row.names = FALSE)
   write.csv(descriptive_results$statistics, stats_file, row.names = FALSE)
   write.csv(plot_data, plot_data_file, row.names = FALSE)
   
-  # Crea e esporta informazioni sulle sonde
   probe_info <- data.frame(
     Probe = data$available_probes,
     Gene = ifelse(data$available_probes %in% data$cgas_probes, "CGAS", "STING"),
-    Status = "Presente nei dati",
+    Status = "Present in data",
     stringsAsFactors = FALSE
   )
   write.csv(probe_info, probe_info_file, row.names = FALSE)
   
-  cat("✓ File esportati nella cartella 'results/':\n")
-  cat("  -", beta_file, "\n")
-  cat("  -", stats_file, "\n")
-  cat("  -", plot_data_file, "\n")
-  cat("  -", probe_info_file, "\n")
+  cat("[SUCCESS] Files exported to the 'results/' folder.\n")
 }
 
-# FUNZIONE PRINCIPALE CON GESTIONE ERRORI
+# MAIN FUNCTION WITH ERROR HANDLING
 analyze_methylation_target_probes <- function(use_saved = FALSE, saved_file = NULL, force_download = FALSE) {
-  cat("=== ANALISI METILAZIONE CGAS E STING - VERSIONE DEFINITIVA ===\n\n")
+  cat("=== CGAS AND STING METHYLATION ANALYSIS - FINAL VERSION ===\n\n")
   
   tryCatch({
-    # 1. Carica pacchetti
     load_required_packages()
     
-    # 2. Gestione download (SOLO se force_download = TRUE)
     if (force_download) {
-      cat("=== DOWNLOAD NUOVI DATI ===\n")
+      cat("=== DOWNLOADING NEW DATA ===\n")
       query <- GDCquery(
         project = c("TCGA-COAD", "TCGA-LUAD", "TCGA-PRAD"),
         data.category = "DNA Methylation",
@@ -345,36 +310,29 @@ analyze_methylation_target_probes <- function(use_saved = FALSE, saved_file = NU
         sample.type = "Primary Tumor"
       )
       GDCdownload(query)
-      cat("✓ Download completato\n")
+      cat("[SUCCESS] Download completed\n")
     }
     
-    # 3. Carica dati
     if (use_saved && !is.null(saved_file)) {
-      cat("Caricamento dati salvati...\n")
+      cat("[INFO] Loading saved data...\n")
       methylation_data <- load_saved_data(saved_file)
     } else {
-      cat("Caricamento dati dai file locali...\n")
+      cat("[INFO] Loading data from local files...\n")
       methylation_data <- load_existing_methylation_data_final()
-      
-      # Salva i dati intermedi
       saved_file <- save_intermediate_data(methylation_data, "methylation_data")
-      cat("Dati primari salvati in:", saved_file, "\n")
+      cat("[SUCCESS] Primary data saved to:", saved_file, "\n")
     }
     
-    # 4. Analisi descrittiva
     descriptive_results <- perform_descriptive_analysis(methylation_data)
     save_intermediate_data(descriptive_results, "descriptive_analysis")
     
-    # 5. Visualizzazioni
     plot_data <- create_visualizations(methylation_data, descriptive_results)
     save_intermediate_data(plot_data, "plot_data")
     
-    # 6. Esportazione
     export_results(descriptive_results, plot_data, methylation_data)
     
-    cat("\n🎉 === ANALISI COMPLETATA CON SUCCESSO === 🎉\n")
-    cat("Dati salvati in:", saved_file, "\n")
-    cat("Puoi riutilizzare i dati con: analyze_methylation_target_probes(use_saved = TRUE, saved_file = '", saved_file, "')\n")
+    cat("\n=== ANALYSIS COMPLETED SUCCESSFULLY ===\n")
+    cat("[INFO] Data saved to:", saved_file, "\n")
     
     return(list(
       methylation_data = methylation_data,
@@ -384,43 +342,11 @@ analyze_methylation_target_probes <- function(use_saved = FALSE, saved_file = NU
     ))
     
   }, error = function(e) {
-    cat("❌ ERRORE durante l'analisi:", e$message, "\n")
-    cat("Traccia dell'errore:\n")
-    print(traceback())
+    cat("[ERROR] During analysis:", e$message, "\n")
     return(NULL)
   })
 }
 
-# ISTRUZIONI USO:
-# - Per usare dati già scaricati: analyze_methylation_target_probes(use_saved = FALSE, force_download = FALSE)
-# - Per nuovo download: analyze_methylation_target_probes(use_saved = FALSE, force_download = TRUE)
-# - Per usare dati salvati: analyze_methylation_target_probes(use_saved = TRUE, saved_file = "tuo_file.RData")
-
-# SPIEGAZIONE USO
-cat("
-ISTRUZIONI USO:
-
-1. PRIMA ESECUZIONE:
-   results <- analyze_methylation_target_probes()
-
-2. ESECUZIONI SUCCESSIVE (con dati già processati):
-   results <- analyze_methylation_target_probes(use_saved = TRUE, saved_file = 'intermediate_methylation_data_YYYYMMDD_HHMMSS.RData')
-
-3. DEBUGGING:
-   - I dati vengono salvati automaticamente dopo ogni step
-   - Usa i file intermediate_* per debuggare
-   - Controlla la cartella 'results/' per i file esportati
-\n")
-
-# ESEGUI L'ANALISI (SCEGLI UN'OPZIONE):
-
-# Opzione 1: Esegui analisi completa (raccomandato per prima volta)
-cat("Inizio analisi completa...\n")
+# RUN THE ANALYSIS
+cat("[INFO] Starting full analysis...\n")
 results <- analyze_methylation_target_probes(use_saved = FALSE, force_download = FALSE)
-
-# Opzione 2: Se hai già dei dati salvati, usa:
-# results <- analyze_methylation_target_probes(use_saved = TRUE, saved_file = "intermediate_methylation_data_YYYYMMDD_HHMMSS.RData")
-
-# Opzione 3: Solo caricamento dati (per debugging)
-# methylation_data <- load_existing_methylation_data_final()
-# save_intermediate_data(methylation_data, "debug_methylation_data")

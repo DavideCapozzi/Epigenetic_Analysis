@@ -1,7 +1,7 @@
-# SCRIPT PER CREARE FILE EXCEL DA plot_data.csv
-# Salva questo codice in un file separato, es. create_excel_tables.R
+# SCRIPT TO CREATE EXCEL FILES FROM plot_data.csv
+# Save this code in a separate file, e.g., create_excel_tables.R
 
-# Carica librerie necessarie
+# Load required libraries
 if (!require("writexl")) {
   install.packages("writexl")
   library(writexl)
@@ -17,84 +17,58 @@ if (!require("tidyr")) {
   library(tidyr)
 }
 
-# Leggi i dati da plot_data.csv
-# NOTA: Assicurati che il percorso sia corretto nel tuo ambiente
-plot_data <- read.csv("D:/AcMet/3AcMet/Epigenetic_Analysis/Methylation/results/plot_data.csv", stringsAsFactors = FALSE)
+# Read data from plot_data.csv
+plot_data <- read.csv("D:/AcMet/3AcMet/epigenetic-analysis/Methylation/results/plot_data.csv", stringsAsFactors = FALSE)
 
-cat("Dati letti da plot_data.csv\n")
-cat("Dimensioni dataset:", dim(plot_data), "\n")
-cat("Colonne:", names(plot_data), "\n")
+cat("[INFO] Data read from plot_data.csv\n")
+cat("Dataset dimensions:", dim(plot_data), "\n")
+cat("Columns:", names(plot_data), "\n")
 
-# Controlla i valori unici di Gene e Project
-cat("Geni presenti:", unique(plot_data$Gene), "\n")
-cat("Progetti presenti:", unique(plot_data$Project), "\n")
+# Check unique values for Gene and Project
+cat("Genes present:", unique(plot_data$Gene), "\n")
+cat("Projects present:", unique(plot_data$Project), "\n")
 
-# =========================================================================
-# MODIFICA: Definisci l'ordine desiderato delle colonne dei progetti (tumori primari)
-# Le colonne finali saranno: Probe, TCGA-LUAD, TCGA-PRAD, TCGA-COAD
+# Define the desired order for the project columns (primary tumors)
 project_col_order <- c("TCGA-LUAD", "TCGA-PRAD", "TCGA-COAD")
-cat("\nOrdine colonne progetti desiderato:", project_col_order, "\n")
-# =========================================================================
+cat("\n[INFO] Desired project column order:", project_col_order, "\n")
 
-# Crea tabelle separate per CGAS e STING in formato wide
+# Create separate tables for CGAS and STING in wide format
 create_gene_tables <- function(plot_data, order_vec) {
-  # Filtra e trasforma i dati per CGAS
+  # Filter and transform data for CGAS
   cgas_table <- plot_data %>%
     filter(Gene == "CGAS") %>%
     select(Probe, Project, BetaValue) %>%
     pivot_wider(
       names_from = Project,
       values_from = BetaValue,
-      values_fn = mean  # Usa la media se ci sono duplicati
+      values_fn = mean  # Use mean if there are duplicates
     ) %>%
-    # =========================================================================
-  # MODIFICA: Seleziona e riordina le colonne: Probe, seguite dall'ordine definito
-  select(Probe, all_of(order_vec))
-  # =========================================================================
+    select(Probe, all_of(order_vec))
   
-  # Filtra e trasforma i dati per STING
+  # Filter and transform data for STING
   sting_table <- plot_data %>%
     filter(Gene == "STING") %>%
     select(Probe, Project, BetaValue) %>%
     pivot_wider(
       names_from = Project,
       values_from = BetaValue,
-      values_fn = mean  # Usa la media se ci sono duplicati
+      values_fn = mean  # Use mean if there are duplicates
     ) %>%
-    # =========================================================================
-  # MODIFICA: Seleziona e riordina le colonne: Probe, seguite dall'ordine definito
-  select(Probe, all_of(order_vec))
-  # =========================================================================
+    select(Probe, all_of(order_vec))
   
   return(list(CGAS = cgas_table, STING = sting_table))
 }
 
-# Crea le tabelle, passando il nuovo ordine di colonne
-# =========================================================================
+# Create the tables, passing the new column order
 tables <- create_gene_tables(plot_data, project_col_order)
-# =========================================================================
 
-# Stampa anteprima
-cat("\nAnteprima tabella CGAS (Verifica ordine colonne):\n")
-print(head(tables$CGAS))
-cat("\nAnteprima tabella STING (Verifica ordine colonne):\n")
-print(head(tables$STING))
-
-# Crea directory results se non esiste
+# Create results directory if it does not exist
 if (!dir.exists("results")) {
   dir.create("results")
 }
 
-# Salva come file Excel
-output_file <- "D:/AcMet/3AcMet/Epigenetic_Analysis/Methylation/results/methylation_beta_values_ordered.xlsx"
+# Save as an Excel file
+output_file <- "D:/AcMet/3AcMet/epigenetic-analysis/Methylation/results/methylation_beta_values_ordered.xlsx"
 write_xlsx(tables, output_file)
 
-cat("\n✓ File Excel creato con successo:", output_file, "\n")
-cat("✓ Fogli creati: CGAS e STING\n")
-cat("✓ Struttura: Righe = Sonde, Colonne = Tumori primari (LUAD, PRAD, COAD) - Ordine forzato\n")
-
-# Verifica il file creato
-cat("\nVerifica file:\n")
-file_info <- file.info(output_file)
-cat("Dimensione file:", round(file_info$size / 1024, 2), "KB\n")
-cat("Path assoluto:", normalizePath(output_file), "\n")
+cat("\n[SUCCESS] Excel file successfully created:", output_file, "\n")

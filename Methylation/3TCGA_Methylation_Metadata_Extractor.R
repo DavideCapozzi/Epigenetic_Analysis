@@ -1,10 +1,12 @@
 # ==============================================================================
 # SCRIPT: TCGA_Methylation_Metadata_Extractor_RStudio.R
-# DESCRIZIONE: Estrae metadati essenziali dai file RData dell'analisi di metilazione
-# USAGE: Esegui in RStudio - imposta rdata_path e chiama la funzione
+# DESCRIPTION: Extracts essential metadata from RData files of methylation analysis
+# USAGE: Run in RStudio - set rdata_path and call the function
 # ==============================================================================
 
-# CARICAMENTO PACCHETTI
+setwd("D:/AcMet/3AcMet/epigenetic-analysis/Methylation/")
+
+# LOAD REQUIRED PACKAGES
 load_required_packages <- function() {
   required_packages <- c("dplyr", "stringr")
   
@@ -14,115 +16,114 @@ load_required_packages <- function() {
       library(pkg, character.only = TRUE)
     }
   }
-  cat("✅ Pacchetti caricati\n")
+  cat("[SUCCESS] Packages loaded\n")
 }
 
-# FUNZIONE PRINCIPALE PER ESTRARRE METADATI
+# MAIN FUNCTION TO EXTRACT METADATA
 extract_methylation_metadata <- function(rdata_path = NULL) {
   cat("=== TCGA METHYLATION METADATA EXTRACTOR - RStudio ===\n\n")
   
-  # 1. TROVA IL FILE RDATA
+  # 1. FIND THE RDATA FILE
   if (is.null(rdata_path)) {
-    cat("Nessun path specificato. Cerco l'ultimo file intermedio...\n")
+    cat("[INFO] No path specified. Searching for the latest intermediate file...\n")
     rdata_files <- list.files(
       pattern = "intermediate_methylation_data_.*\\.RData$",
       full.names = TRUE
     )
     
     if (length(rdata_files) == 0) {
-      stop("❌ Nessun file RData trovato. Specifica il path manualmente.")
+      stop("[ERROR] No RData file found. Please specify the path manually.")
     }
     
-    # Prendi l'ultimo file
+    # Get the latest file
     rdata_path <- sort(rdata_files, decreasing = TRUE)[1]
-    cat("✅ Trovato file automaticamente:", rdata_path, "\n")
+    cat("[SUCCESS] File automatically found:", rdata_path, "\n")
   } else {
     if (!file.exists(rdata_path)) {
-      stop("❌ File non trovato: ", rdata_path)
+      stop("[ERROR] File not found: ", rdata_path)
     }
-    cat("✅ File specificato:", rdata_path, "\n")
+    cat("[SUCCESS] Specified file:", rdata_path, "\n")
   }
   
-  # 2. CARICA IL FILE RDATA
-  cat("\n--- CARICAMENTO DATI ---\n")
+  # 2. LOAD THE RDATA FILE
+  cat("\n--- DATA LOADING ---\n")
   
-  # Crea un ambiente temporaneo per il caricamento
+  # Create a temporary environment for loading
   temp_env <- new.env()
   load(rdata_path, envir = temp_env)
   
-  # Verifica quale oggetto è stato caricato
+  # Check which object was loaded
   loaded_objects <- ls(envir = temp_env)
-  cat("Oggetti caricati:", paste(loaded_objects, collapse = ", "), "\n")
+  cat("[INFO] Loaded objects:", paste(loaded_objects, collapse = ", "), "\n")
   
-  # Cerca l'oggetto dei dati di metilazione (può avere nomi diversi)
+  # Look for the methylation data object
   if ("methylation_data" %in% loaded_objects) {
     data <- temp_env$methylation_data
-    cat("✅ Trovato oggetto 'methylation_data'\n")
+    cat("[SUCCESS] Found 'methylation_data' object\n")
   } else if ("data" %in% loaded_objects) {
     data <- temp_env$data
-    cat("✅ Trovato oggetto 'data'\n")
+    cat("[SUCCESS] Found 'data' object\n")
   } else if (length(loaded_objects) == 1) {
-    # Se c'è solo un oggetto, usalo
+    # If there's only one object, use it
     data <- get(loaded_objects[1], envir = temp_env)
-    cat("✅ Usato oggetto:", loaded_objects[1], "\n")
+    cat("[SUCCESS] Used object:", loaded_objects[1], "\n")
   } else {
-    stop("❌ Non riesco a identificare l'oggetto con i dati di metilazione. Oggetti disponibili: ", 
+    stop("[ERROR] Cannot identify the methylation data object. Available objects: ", 
          paste(loaded_objects, collapse = ", "))
   }
   
-  # Verifica la struttura dei dati
+  # Verify the data structure
   required_components <- c("beta_values", "metadata", "available_probes", "cgas_probes", "sting_probes")
   missing_components <- setdiff(required_components, names(data))
   
   if (length(missing_components) > 0) {
-    stop("❌ Struttura dati incompleta. Componenti mancanti: ", paste(missing_components, collapse = ", "))
+    stop("[ERROR] Incomplete data structure. Missing components: ", paste(missing_components, collapse = ", "))
   }
   
-  cat("✅ Struttura dati verificata\n")
+  cat("[SUCCESS] Data structure verified\n")
   
-  # 3. ESTRAZIONE METADATI ESSENZIALI
-  cat("\n--- METADATI CAMPIONI ---\n")
+  # 3. ESSENTIAL METADATA EXTRACTION
+  cat("\n--- SAMPLE METADATA ---\n")
   
-  # Conteggio campioni per progetto
+  # Sample count per project
   sample_summary <- data$metadata %>%
     group_by(project_id) %>%
     summarise(
-      n_campioni = n(),
+      n_samples = n(),
       .groups = 'drop'
     )
   
-  cat("CAMPIONI PER TUMORE:\n")
+  cat("SAMPLES PER TUMOR:\n")
   print(sample_summary)
-  cat("TOTALE CAMPIONI:", sum(sample_summary$n_campioni), "\n")
+  cat("TOTAL SAMPLES:", sum(sample_summary$n_samples), "\n")
   
-  # 4. INFORMAZIONI SONDE
-  cat("\n--- INFORMAZIONI SONDE ---\n")
+  # 4. PROBES INFORMATION
+  cat("\n--- PROBES INFORMATION ---\n")
   
   cgas_found <- sum(data$cgas_probes %in% data$available_probes)
   sting_found <- sum(data$sting_probes %in% data$available_probes)
   cgas_missing <- setdiff(data$cgas_probes, data$available_probes)
   sting_missing <- setdiff(data$sting_probes, data$available_probes)
   
-  cat("SONDE CGAS:", cgas_found, "/", length(data$cgas_probes), "trovate\n")
-  cat("SONDE STING:", sting_found, "/", length(data$sting_probes), "trovate\n")
-  cat("SONDE TOTALI ANALIZZATE:", length(data$available_probes), "\n")
+  cat("CGAS PROBES:", cgas_found, "/", length(data$cgas_probes), "found\n")
+  cat("STING PROBES:", sting_found, "/", length(data$sting_probes), "found\n")
+  cat("TOTAL PROBES ANALYZED:", length(data$available_probes), "\n")
   
   if (length(cgas_missing) > 0) {
-    cat("SONDE CGAS MANCANTI:", paste(cgas_missing, collapse = ", "), "\n")
+    cat("MISSING CGAS PROBES:", paste(cgas_missing, collapse = ", "), "\n")
   }
   if (length(sting_missing) > 0) {
-    cat("SONDE STING MANCANTI:", paste(sting_missing, collapse = ", "), "\n")
+    cat("MISSING STING PROBES:", paste(sting_missing, collapse = ", "), "\n")
   }
   
-  # 5. QUALITÀ DATI
-  cat("\n--- QUALITÀ DATI ---\n")
+  # 5. DATA QUALITY
+  cat("\n--- DATA QUALITY ---\n")
   
   beta_matrix <- data$beta_values
   total_values <- length(beta_matrix)
   na_count <- sum(is.na(beta_matrix))
   na_percentage <- round(na_count / total_values * 100, 2)
   
-  # Campioni con dati completi
   samples_with_data <- colSums(!is.na(beta_matrix))
   probes_per_sample <- nrow(beta_matrix)
   
@@ -130,57 +131,51 @@ extract_methylation_metadata <- function(rdata_path = NULL) {
   good_samples <- sum(samples_with_data >= 0.9 * probes_per_sample)
   poor_samples <- sum(samples_with_data < 0.5 * probes_per_sample)
   
-  cat("Dimensioni matrice beta:", dim(beta_matrix)[1], "sonde x", dim(beta_matrix)[2], "campioni\n")
-  cat("Valori totali:", total_values, "\n")
-  cat("Valori mancanti:", na_count, "(", na_percentage, "%)\n")
-  cat("Campioni con dati completi (100% sonde):", complete_samples, "\n")
-  cat("Campioni con dati buoni (>90% sonde):", good_samples, "\n")
-  cat("Campioni con dati scarsi (<50% sonde):", poor_samples, "\n")
+  cat("Beta matrix dimensions:", dim(beta_matrix)[1], "probes x", dim(beta_matrix)[2], "samples\n")
+  cat("Total values:", total_values, "\n")
+  cat("Missing values:", na_count, "(", na_percentage, "%)\n")
+  cat("Samples with complete data (100% probes):", complete_samples, "\n")
+  cat("Samples with good data (>90% probes):", good_samples, "\n")
+  cat("Samples with poor data (<50% probes):", poor_samples, "\n")
   
-  # 6. BARCODE E CAMPIONI
-  cat("\n--- BARCODE CAMPIONI ---\n")
-  cat("Primi 10 barcode:\n")
-  print(head(data$metadata$submitter_id, 10))
-  cat("... e", length(data$metadata$submitter_id) - 10, "altri\n")
-  
-  # 7. CREAZIONE REPORT RIASSUNTIVO
+  # 6. SUMMARY REPORT CREATION
   cat("\n", strrep("=", 50), "\n")
-  cat("REPORT RIASSUNTIVO PER METODI\n")
+  cat("METHODS SUMMARY REPORT\n")
   cat(strrep("=", 50), "\n")
   
   projects <- paste(unique(data$metadata$project_id), collapse = ", ")
-  total_samples <- sum(sample_summary$n_campioni)
+  total_samples <- sum(sample_summary$n_samples)
   
-  cat("• FONTE DATI: TCGA (", projects, ")\n")
-  cat("• PIATTAFORMA: Illumina Human Methylation 450K\n")
-  cat("• PREPROCESSING: Dati normalizzati con pipeline SeSAMe del GDC\n")
-  cat("• CAMPIONI: ")
+  cat("* DATA SOURCE: TCGA (", projects, ")\n")
+  cat("* PLATFORM: Illumina Human Methylation 450K\n")
+  cat("* PREPROCESSING: Data normalized with GDC SeSAMe pipeline\n")
+  cat("* SAMPLES: ")
   for (i in 1:nrow(sample_summary)) {
-    cat(sample_summary$project_id[i], "=", sample_summary$n_campioni[i])
+    cat(sample_summary$project_id[i], "=", sample_summary$n_samples[i])
     if (i < nrow(sample_summary)) cat(", ")
   }
-  cat(" (totale:", total_samples, "campioni tumorali primari)\n")
-  cat("• SONDE: ", cgas_found, " cGAS + ", sting_found, " STING = ", 
-      length(data$available_probes), " sonde totali\n", sep = "")
-  cat("• QUALITÀ DATI: ", na_percentage, "% valori mancanti\n", sep = "")
+  cat(" (total:", total_samples, "primary tumor samples)\n")
+  cat("* PROBES: ", cgas_found, " cGAS + ", sting_found, " STING = ", 
+      length(data$available_probes), " total probes\n", sep = "")
+  cat("* DATA QUALITY: ", na_percentage, "% missing values\n", sep = "")
   
-  # 8. ESPORTAZIONE METADATI (OPZIONALE)
-  cat("\n--- ESPORTAZIONE METADATI ---\n")
+  # 7. METADATA EXPORT (OPTIONAL)
+  cat("\n--- METADATA EXPORT ---\n")
   
   output_dir <- "metadata_export"
   if (!dir.exists(output_dir)) {
     dir.create(output_dir)
-    cat("✅ Creata directory:", output_dir, "\n")
+    cat("[INFO] Created directory:", output_dir, "\n")
   }
   
   timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
   
-  # File completo metadati
+  # Complete metadata file
   metadata_file <- file.path(output_dir, paste0("complete_metadata_", timestamp, ".csv"))
   write.csv(data$metadata, metadata_file, row.names = FALSE)
-  cat("✅ Metadati completi esportati in:", metadata_file, "\n")
+  cat("[SUCCESS] Complete metadata exported to:", metadata_file, "\n")
   
-  # File riassuntivo
+  # Summary file
   summary_file <- file.path(output_dir, paste0("analysis_summary_", timestamp, ".txt"))
   sink(summary_file)
   cat("ANALYSIS SUMMARY - TCGA Methylation Data\n")
@@ -206,9 +201,9 @@ extract_methylation_metadata <- function(rdata_path = NULL) {
   cat("Samples with poor data (<50%):", poor_samples, "\n")
   sink()
   
-  cat("✅ Riassunto analisi esportato in:", summary_file, "\n")
+  cat("[SUCCESS] Analysis summary exported to:", summary_file, "\n")
   
-  # 9. RESTITUISCI I DATI STRUTTURATI
+  # 8. RETURN STRUCTURED DATA
   results <- list(
     sample_summary = sample_summary,
     probe_summary = list(
@@ -232,60 +227,13 @@ extract_methylation_metadata <- function(rdata_path = NULL) {
     sample_barcodes = data$metadata$submitter_id
   )
   
-  cat("\n✅ Estrazione completata!\n")
+  cat("\n[SUCCESS] Extraction completed!\n")
   return(invisible(results))
 }
 
 # ==============================================================================
-# ISTRUZIONI PER L'USO IN RSTUDIO
+# EXECUTION EXAMPLE
 # ==============================================================================
 
-cat("
-📋 ISTRUZIONI PER L'USO IN RSTUDIO:
-
-1. CARICA I PACCHETTI:
-   load_required_packages()
-
-2. IMPOSTA IL PERCORSO DEL FILE RDATA:
-   rdata_path <- 'tuo/path/al/file.RData'
-
-   Esempi:
-   rdata_path <- 'intermediate_methylation_data_20231201_143022.RData'
-   rdata_path <- 'D:/Analisi/TCGA/methylation_data.RData'
-
-3. ESEGUI L'ESTRAZIONE:
-   result <- extract_methylation_metadata(rdata_path)
-
-4. SE NON SPECIFICHI IL PATH, CERCHERA' AUTOMATICAMENTE:
-   result <- extract_methylation_metadata()
-
-5. ACCEDI AI RISULTATI:
-   print(result$sample_summary)    # Campioni per tumore
-   print(result$probe_summary)     # Sommario sonde
-   print(result$data_quality)      # Qualità dati
-   result$sample_barcodes          # Lista completa barcode
-
-📊 OUTPUT:
-   • Report dettagliato in console
-   • File CSV con metadati completi
-   • File di testo con riassunto
-   • Oggetto R strutturato con tutti i dati
-
-")
-
-# ==============================================================================
-# ESEMPIO DI ESECUZIONE (RIMUOVI IL COMMENTO PER PROVARE)
-# ==============================================================================
-
-# ESEMPIO 1: Con path specifico
-rdata_path <- "D:/AcMet/3AcMet/Epigenetic_Analysis/Methylation/intermediate_methylation_data_20251008_215333.RData"
+rdata_path <- "D:/AcMet/3AcMet/epigenetic-analysis/Methylation/intermediate_methylation_data_20251008_215333.RData"
 result <- extract_methylation_metadata(rdata_path)
-
-# ESEMPIO 2: Ricerca automatica
-# result <- extract_methylation_metadata()
-
-# ESEMPIO 3: Usa i risultati
-# print(result$sample_summary)
-# cat("Campioni totali:", result$data_quality$total_samples, "\n")
-
-cat("🚀 PRONTO PER L'USO! Imposta rdata_path e chiama extract_methylation_metadata()\n")
